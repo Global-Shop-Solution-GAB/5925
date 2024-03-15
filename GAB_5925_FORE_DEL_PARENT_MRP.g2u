@@ -1,0 +1,190 @@
+Program.Sub.ScreenSU.Start
+Gui.ForecastMRP..Create
+Gui.ForecastMRP..Caption("Forecast MRP")
+Gui.ForecastMRP..Size(4845,1815)
+Gui.ForecastMRP..MinX(0)
+Gui.ForecastMRP..MinY(0)
+Gui.ForecastMRP..Position(0,0)
+Gui.ForecastMRP..BackColor(-2147483633)
+Gui.ForecastMRP..MaxButton(False)
+Gui.ForecastMRP..MinButton(False)
+Gui.ForecastMRP..MousePointer(0)
+Gui.ForecastMRP..Event(UnLoad,F_end)
+Gui.ForecastMRP.cmdProcess.Create(Button)
+Gui.ForecastMRP.cmdProcess.Size(855,375)
+Gui.ForecastMRP.cmdProcess.Position(3195,330)
+Gui.ForecastMRP.cmdProcess.Caption("Process")
+Gui.ForecastMRP.cmdProcess.Event(Click,cmdProcess_Click)
+Gui.ForecastMRP.cmdProcess.TabStop(True)
+Gui.ForecastMRP.cmdProcess.TabIndex(2)
+Gui.ForecastMRP.lblCust.Create(Label,"Customer Code:",True,1350,255,0,165,420,True,0,"Arial",8,-2147483633,0)
+Gui.ForecastMRP.txtCust.Create(TextBox,"",True,1215,300,0,1515,345,True,0,"Arial",8,-2147483643,1)
+Gui.ForecastMRP.txtCust.MaxLength(6)
+Gui.ForecastMRP.txtCust.TabStop(True)
+Gui.ForecastMRP.txtCust.TabIndex(1)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Variable.UDT.uFORE.Define("PARENT_PART",String,"PARENT_PART")
+Variable.UDT.uFORE.Define("LOCATION",String,"LOCATION")
+Variable.UDT.uFORE.Define("DATE_DUE",Date,"DATE_DUE")
+Variable.UDT.uFORE.Define("FORECAST_QTY",Float,"FORECAST_QTY")
+Variable.UDT.uFORE.Define("SCHED_JOB",String,"SCHED_JOB")
+Variable.UDT.uFORE.Define("SCHED_SUF",String,"SCHED_SUF")
+Variable.UDT.uFORE.Define("FORE_ID",String)
+Variable.UDT.uFORE.Define("FORE_ID_SUFF",String)
+Variable.UDT.uFORE.Define("ID_SUFF_DEL_FLAG",String)
+Variable.uGlobal.uFORE.Declare("uFORE")
+Variable.UDT.uFORESUM.Define("FORE_ID",String,"ID")
+Variable.UDT.uFORESUM.Define("PART",String,"PART")
+Variable.UDT.uFORESUM.Define("LOC",String,"LOC")
+Variable.UDT.uFORESUM.Define("ID_DEL_FLAG",String)
+Variable.uGlobal.uFORESUM.Declare("uFORESUM")
+Variable.UDT.uInv.Define("PART",String,"PART")
+Variable.UDT.uInv.Define("LOCATION",String,"LOCATION")
+Variable.UDT.uInv.Define("QTY_ONHAND",Float,"QTY_ONHAND")
+Variable.UDT.uInv.Define("QTY_ONORDER_PO",Float,"QTY_ONORDER_PO")
+Variable.UDT.uInv.Define("QTY_ONORDER_WO",Float,"QTY_ONORDER_WO")
+Variable.UDT.uInv.Define("QTY_REQUIRED",Float,"QTY_REQUIRED")
+Variable.UDT.uInv.Define("QTY_REORDER",Float,"QTY_REORDER")
+Variable.uGlobal.uInv.Declare("uInv")
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'03/11/2020 RGRC FOR GENESSEE
+
+
+V.Local.bExists.Declare
+V.Global.sFile.Declare(String)
+F.Intrinsic.String.Build("{0}\FORECAST_DELGENE.TXT",V.Caller.FilesDir,V.Global.sFile)
+
+F.Intrinsic.File.Exists(V.Global.sFile,V.Local.bExists)
+
+F.Intrinsic.Control.If(V.Local.bExists,=,False)
+	Gui.ForecastMRP..Show
+F.Intrinsic.Control.Else
+	F.Intrinsic.UI.Msgbox("GAB Forecast Del Gene is running, FORECAST_DELGENE.TXT exists","GAB Forecast Delete Message")
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.F_end.Start
+F.Intrinsic.Control.End
+
+Program.Sub.F_end.End
+
+Program.Sub.F_Process.Start
+V.Local.sSql.Declare
+V.Local.sSqlDelForeSum.Declare
+V.Local.sSqlDelFore.Declare
+V.Local.iC.Declare
+V.Local.iC2.Declare
+V.Local.iFlag.Declare
+V.Local.sLine.Declare
+V.Local.sLine2.Declare
+V.Local.fPartNet.Declare(Float)
+
+F.Intrinsic.File.String2File(V.Global.sFile," ")
+V.Local.sSql.Set("select PART, LOCATION, QTY_ONHAND, QTY_ONORDER_PO, QTY_ONORDER_WO, QTY_REQUIRED,QTY_REORDER from INVENTORY_MSTR")
+F.ODBC.Connection!Conx.OpenLocalRecordsetRO("rstInv",V.Local.sSQL)
+F.Intrinsic.Variable.LoadUDTFromRecordset("Conx","rstInv","uglobal.uInv",False,100000)
+F.ODBC.Conx!rstInv.Close
+
+F.Intrinsic.String.Build("Select ID,PART,LOC from FORECAST_SUMMARY WHERE CUSTOMER='{0}'",V.Screen.ForecastMRP!txtCust.Value,V.Local.sSql)
+F.ODBC.Connection!Conx.OpenLocalRecordsetRO("rstFORESUM",V.Local.sSQL)
+F.Intrinsic.Variable.LoadUDTFromRecordset("Conx","rstFORESUM","uglobal.uFORESUM",False,100000)
+F.ODBC.Conx!rstFORESUM.Close
+
+
+F.Intrinsic.Control.For(V.Local.iC,0,V.uGlobal.uFORESUM.UBound,1)
+	F.Intrinsic.Variable.UDTMultiSeek(V.uGlobal.uInv!PART,V.uGlobal.uFORESUM(V.Local.iC)!PART,V.uGlobal.uInv!LOCATION,V.uGlobal.uFORESUM(V.Local.iC)!LOC,V.Local.sLine)
+	F.Intrinsic.Control.If(V.Local.sLine,<>,"")
+		F.Intrinsic.String.Split(V.Local.sLine,"*!*",V.Local.sLine)
+		F.Intrinsic.Math.Add(V.uGlobal.uInv(V.Local.sLine(0))!QTY_ONHAND,V.uGlobal.uInv(V.Local.sLine(0))!QTY_ONORDER_PO,V.uGlobal.uInv(V.Local.sLine(0))!QTY_ONORDER_WO,V.Local.fPartNet)
+		F.Intrinsic.Math.Sub(V.Local.fPartNet,V.uGlobal.uInv(V.Local.sLine(0))!QTY_REORDER,V.uGlobal.uInv(V.Local.sLine(0))!QTY_REQUIRED,V.Local.fPartNet)
+		F.Intrinsic.Variable.UDTMultiSeek(V.uGlobal.uFORE!PARENT_PART,V.uGlobal.uFORESUM(V.Local.iC)!PART,V.uGlobal.uFORE!LOCATION,V.uGlobal.uFORESUM(V.Local.iC)!LOC,V.Local.sLine2)
+		F.Intrinsic.Control.If(V.Local.sLine2,<>,"")
+			V.Local.iFlag.Set(0)
+			F.Intrinsic.String.Split(V.Local.sLine2,"*!*",V.Local.sLine2)
+			F.Intrinsic.Control.For(V.Local.iC2,0,V.Local.sLine2.UBound,1)
+				F.Intrinsic.Control.If(V.Local.iFlag,=,0)
+					F.Intrinsic.Math.Sub(V.Local.fPartNet,V.uGlobal.uFORE(V.Local.sLine2(V.Local.iC2))!FORECAST_QTY,V.Local.fPartNet)
+					F.Intrinsic.Control.If(V.Local.fPartNet,>,0)
+						V.uGlobal.uFORE(V.Local.sLine2(V.Local.iC2))!ID_SUFF_DEL_FLAG.Set("Y")
+						F.Intrinsic.Control.If(V.Local.iC2,=,V.Local.sLine2.UBound)
+							V.uGlobal.uFORESUM(V.Local.iC)!ID_DEL_FLAG.Set("Y")
+						F.Intrinsic.Control.EndIf
+					F.Intrinsic.Control.Else
+						V.Local.iFlag.Set(1)
+					F.Intrinsic.Control.EndIf
+				F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.Next(V.Local.iC2)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iC)
+
+
+F.Intrinsic.Control.For(V.Local.iC,0,V.uGlobal.uFORE.UBound,1)
+	F.Intrinsic.Control.If(V.uGlobal.uFORE(V.Local.iC)!ID_SUFF_DEL_FLAG,=,"Y")
+		F.Intrinsic.String.Build("DELETE FROM FORECAST WHERE SCHED_JOB='{0}' AND SCHED_SUF='{1}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_XREF WHERE WO='{0}' AND WO_SUFF='{1}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_HISTORY WHERE WO='{0}' AND WO_SUFFIX='{1}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		
+		
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_REQ WHERE FO_NUMBER='{0}' AND FO_SUFFIX='000' and FO_SEQ <> '000000';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_REQ WHERE FO_NUMBER='{0}' AND FO_SUFFIX<>'000';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_HEADER WHERE JOB='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_OPS WHERE JOB='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM FORECAST_SUPP WHERE WO='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM APSV3_JBLINES WHERE JOB='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM APSV3_JBMASTER WHERE JOB='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		F.Intrinsic.String.Build("DELETE FROM APSV3_UBDETAIL WHERE JOB='{0}';",V.uGlobal.uFORE(V.Local.iC)!SCHED_JOB,V.uGlobal.uFORE(V.Local.iC)!SCHED_SUF,V.Local.sSqlDelFore)
+		F.ODBC.Connection!Conx.Execute(V.Local.sSqlDelFore)
+		
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iC)
+
+F.Intrinsic.File.DeleteFile(V.Global.sFile)
+Program.Sub.F_Process.End
+
+Program.Sub.cmdProcess_Click.Start
+V.Local.sSqlFore.Declare
+
+GUI.ForecastMRP..Visible(False)
+'Create/Open Connection
+F.ODBC.Connection!Conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass,1200)
+
+F.Intrinsic.String.Build("Select PART AS PARENT_PART, LOCATION, DATE_DUE,QTY_ORDER AS FORECAST_QTY,JOB AS SCHED_JOB,SUFFIX AS SCHED_SUF From V_FORECAST_HEADER WHERE JOB<> '' AND (SUFFIX = '000' or SUFFIX = ' ') AND CUSTOMER='{0}' ORDER BY PART, LOCATION, JOB, SUFFIX;",V.Screen.ForecastMRP!txtCust.Value,V.Local.sSqlFore)
+F.ODBC.Connection!Conx.OpenLocalRecordsetRO("rstForeLoad",V.Local.sSqlFore)
+F.Intrinsic.Control.If(V.ODBC.Conx!rstForeLoad.EOF,=,True)
+	F.ODBC.Conx!rstForeLoad.Close
+	F.ODBC.Connection!Conx.Close
+	F.Intrinsic.Control.CallSub(F_end)
+F.Intrinsic.Control.Else
+	' Load Forecast Info
+	F.Intrinsic.Variable.LoadUDTFromRecordset("Conx","rstForeLoad","uglobal.uFORE",False,100000)
+	F.ODBC.Conx!rstForeLoad.Close
+	F.Intrinsic.Control.CallSub(F_Process)
+	F.ODBC.Connection!Conx.Close
+	F.Intrinsic.Control.CallSub(F_end)
+F.Intrinsic.Control.EndIf
+
+Program.Sub.cmdProcess_Click.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$$}$12:00:00 AM$}$False
+Program.Sub.Comments.End
